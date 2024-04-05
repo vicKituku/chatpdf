@@ -15,21 +15,60 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chains import ConversationalRetrievalChain
 from htmltemplate import css, bot_template, user_template
+from langchain_community.document_loaders import TextLoader
 
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_pdf_text(pdf_docs):
+def get_pdf_text(docs):
+
+
+                
     text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text+=page.extract_text()
+    for file in docs:
+        bytes_data = file.read()
+        file_name = os.path.join('./',file.name)
+
+        with open(file_name, 'wb') as f:
+            f.write(bytes_data)
+        
+        name, extension = os.path.splitext(file_name)
+        
+        if extension == '.pdf':
+            from langchain.document_loaders import PyPDFLoader
+            print(f'Loading {file}')
+            loader = PyPDFLoader(file_name)
+        elif extension == '.docx':
+            from langchain.document_loaders import Docx2txtLoader
+            print(f'Loading {file}')
+            loader = Docx2txtLoader(file_name)
+        elif extension == '.txt':
+            from langchain.document_loaders import TextLoader
+            loader = TextLoader(file_name)
+        else:
+            print('Document format is not supported!')
+            return None
+        
+        data = loader.load()
+        for page in data:
+            text += page.page_content
+        os.remove(file_name)
     return text
+
+
+
+
+    # text = ""
+    # for doc in docs:
+    #     pdf_reader = PdfReader(pdf)
+    #     for page in pdf_reader.pages:
+    #         text+=page.extract_text()
+    # return text
 
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
@@ -126,7 +165,9 @@ def main():
                 raw_text = get_pdf_text(pdf_docs)
                 text_chunks = get_text_chunks(raw_text)
                 vectorstore = get_vector_store(text_chunks)
+                
                 st.session_state.conversation = get_conversational_chain(vectorstore)
+                
                 st.success("Done")
 
 
