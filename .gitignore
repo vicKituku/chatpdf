@@ -1,0 +1,4 @@
+__pycache__
+faiss_index
+.env
+env-chatpdf
